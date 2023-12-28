@@ -26,8 +26,8 @@
         });
 
         const gamaConnector = new GAMA("WEBSOCKET_HOST_ADDRESS", "MODEL_PATH", "EXPERIMENT_NAME");
-        var ABSOLUTE_PATH_TO_GAMA = 'C:\\Users\\Admin\\AppData\\ocal\\Programs\\Gama\\configuration\\org.eclipse.osgi\\19\\0\\.cp\\models\\';
-        var modelPath = ABSOLUTE_PATH_TO_GAMA + '/Tutorials/Road Traffic/models/Model 05.gaml';
+        var ABSOLUTE_PATH_TO_GAMA = 'C:\\Users\\Admin\\Downloads\\Capstone_DigitalTwin-master\\Capstone_DigitalTwin-master\\';
+        var modelPath = ABSOLUTE_PATH_TO_GAMA + '/VinUni_Charging_Stations/models/vinuni_CS_v2.gaml';
         var experimentName = 'road_traffic';
         const experiment = new GAMA("ws://localhost:6868/", modelPath, experimentName);
         experiment.logger = log;
