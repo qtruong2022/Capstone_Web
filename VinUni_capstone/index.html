@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Animate a point along a line</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <!-- communicate with GAMA through Websocket and using JS -->
+    <script src="./dev/GAMA.js"></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1Ijoid2luc3Rvbi1uZyIsImEiOiJjbHE0cG5wYncwOTh4MnJsa255eXYzOHQ4In0.875mHeRhLPrB-47m4rQcZg';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [105.944751,20.988778], //vinuni center //[lng, lat]
+            zoom: 17
+        });
+
+        const gamaConnector = new GAMA("WEBSOCKET_HOST_ADDRESS", "MODEL_PATH", "EXPERIMENT_NAME");
+        var ABSOLUTE_PATH_TO_GAMA = 'C:\\Users\\Admin\\AppData\\ocal\\Programs\\Gama\\configuration\\org.eclipse.osgi\\19\\0\\.cp\\models\\';
+        var modelPath = ABSOLUTE_PATH_TO_GAMA + '/Tutorials/Road Traffic/models/Model 05.gaml';
+        var experimentName = 'road_traffic';
+        const experiment = new GAMA("ws://localhost:6868/", modelPath, experimentName);
+        experiment.logger = log;
+        experiment.connect(on_connected); //connect to server
+
+        //callback function 'on_connected'
+        function on_connected() {
+            //set the list of input values of the experiment parameters
+            experiment.setParameters([
+            { "name": "Number of gasoline car agents", "value": 50, "type": "int" },
+            { "name": "Number of electrical car agents", "value": 40, "type": "int" }
+            ]);
+
+            experiment.setEndCondition("cycle>=228"); //the simulation will run from 00:00 to 19:00, which is 228 cycles of 5 mins
+            experiment.launch();
+            experiment.play();
+            experiment.evalExpr("create car_gasoline number: 50;", onReceiveMsg);
+            experiment.evalExpr("create car_electrical number: 40;", onReceiveMsg);
+
+            experiment.evalExpr("cycle", onReceiveMsg);
+            experiment.evalExpr("ask car_gasoline {location}", onReceiveMsg) //ask 'car_gasoline' agent to return its location
+            experiment.evalExpr("ask car_electrical {location}", onReceiveMsg) //ask 'car_electrical' agent to return its location
+
+
+        }
+    //this code prt is to animate a circle, HAS NOT been modifed for this case   
+        //animate point on the web interface
+        function pointOnCircle(angle) {
+        return {
+            'type': 'Point',
+            'coordinates': [Math.cos(angle) * radius, Math.sin(angle) * radius]
+        };
+    }
+    //  An event listener that executes its callback when the map finishes loading.
+        map.on('load', () => {
+            // Add a source and layer displaying a point which will be animated in a circle.
+            map.addSource('point', { //'point' is the ID of the source
+                'type': 'geojson',  //source object is GeoJSON data
+                'data': pointOnCircle(0)
+            });
+
+            map.addLayer({
+                'id': 'point',
+                'source': 'point',
+                // 'type': 'circle',
+                // 'paint': {
+                //     'circle-radius': 5,
+                //     'circle-color': '#007cbf'
+                'type': 'symbol',
+                'layout': {
+                    'icon-image': 'airport',
+                    'icon-size': 1.5,
+                    'icon-rotate': ['get', 'bearing'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true
+                }
+            });
+
+            function animateMarker(timestamp) {
+                // Update the data to a new position based on the animation timestamp. The
+                // divisor in the expression `timestamp / 1000` controls the animation speed.
+                map.getSource('point').setData(pointOnCircle(timestamp / 1000));
+
+                // Request the next frame of the animation.
+                requestAnimationFrame(animateMarker);
+            }
+
+            // Start the animation.
+            animateMarker(0);
+        });
+        
+    </script>
+
+    </body>
+    </html>
