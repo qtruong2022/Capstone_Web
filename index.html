@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>GAMA Simulation Display</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <!-- communicate with GAMA through Websocket and using JS -->
+    <script src="./dev/GAMA.js"></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1Ijoid2luc3Rvbi1uZyIsImEiOiJjbHE0cG5wYncwOTh4MnJsa255eXYzOHQ4In0.875mHeRhLPrB-47m4rQcZg';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [105.944751,20.988778], //vinuni center //[lng, lat]
+            zoom: 17
+        });
+
+        const gamaConnector = new GAMA("WEBSOCKET_HOST_ADDRESS", "MODEL_PATH", "EXPERIMENT_NAME");
+        var ABSOLUTE_PATH_TO_GAMA = 'C:\\Users\\Admin\\Downloads\\Capstone_DigitalTwin-master\\Capstone_DigitalTwin-master\\';
+        var modelPath = ABSOLUTE_PATH_TO_GAMA + '/VinUni_Charging_Stations/models/vinuni_CS_v2.gaml';
+        var experimentName = 'road_traffic';
+        const experiment = new GAMA("ws://localhost:6868/", modelPath, experimentName);
+        experiment.logger = log;
+        experiment.connect(on_connected); //connect to server
+
+        var marker = new mapboxgl.Marker();
+        //callback function 'on_connected'
+        function on_connected() {
+            //set the list of input values of the experiment parameters
+            experiment.setParameters([
+                { "name": "Number of gasoline car agents", "value": 50, "type": "int" },
+                { "name": "Number of electrical car agents", "value": 40, "type": "int" }
+            ]);
+
+            experiment.setEndCondition("cycle>=228"); //the simulation will run from 00:00 to 19:00, which is 228 cycles of 5 mins
+            experiment.launch();
+            experiment.play();
+            //experiment.evalExpr("create car_gasoline number: 50;", onReceiveMsg);
+            //experiment.evalExpr("create car_electrical number: 40;", onReceiveMsg);
+            // experiment.evalExpr("cycle", onReceiveMsg);
+            // experiment.evalExpr("ask car_gasoline {location}", onReceiveMsg) //ask 'car_gasoline' agent to return its location
+            // experiment.evalExpr("ask car_electrical {location}", onReceiveMsg) //ask 'car_electrical' agent to return its location
+        }
+        //  An event listener that executes its callback when the map finishes loading.
+        map.on('load', function() {
+            // Add a source and layer displaying a point which will be animated in a circle.
+            map.addSource('point', { //'point' is the ID of the source
+                'type': 'geojson',  //source object is GeoJSON data
+                'data': {
+                    'type': 'Point',
+                    'coordinates': [0,0] //initial position
+                }
+            });
+            map.addLayer({
+                'id': 'point',
+                'source': 'point',
+                'type': 'circle',
+                'paint': {
+                    'circle-radius': 1,
+                    'circle-color': '#007cbf'
+            }
+        });
+            // Start the animation.
+            animateMarker(0);
+        });
+        function animateMarker(timestamp){
+            experiment.evalExpr("ask car_gasoline {write location;}", onReceiveMsg) //ask 'car_gasoline' agent to return its location
+            requestAnimationFrame(animateMarker);
+        }
+        function onReceiveMsg(result){
+            var message = JSON.parse(result);
+            var location = message.content;
+            map.getSource('point').setData({
+                'type': 'Point',
+                'coordinates': [location.x, location.y]
+            });
+        }
+    </script>
+    </body>
+    </html>
